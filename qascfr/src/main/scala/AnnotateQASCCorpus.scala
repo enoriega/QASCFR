@@ -21,11 +21,11 @@ object AnnotateQASCCorpus extends App {
   val updatePercentage = 10
   println("Annotating documents")
   val docs =
-    for(fact <- facts.par) yield {
-//      val done = ix + 1
-//      if((done)%(percent*updatePercentage) == 0){
-//        println(s"$done (${(done.toFloat/totalFacts)*100}%) ...")
-//      }
+    for((fact, ix) <- facts.zipWithIndex) yield {
+      val done = ix + 1
+      if((done)%(percent*updatePercentage) == 0){
+        println(s"$done (${(done.toFloat/totalFacts)*100}%) ...")
+      }
       processor.annotate(fact)
     }
   println("Saving results")
