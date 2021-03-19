@@ -14,6 +14,8 @@ object AnnotateQASCCorpus extends App {
   // Instantiate a processors instance to generate the doc object
   org.clulab.dynet.Utils.initializeDyNet()
   val processor = new CluProcessor()
+  // Initialize the processor
+  processor.annotate("Test")
 
   // Annotate the facts as document objects
   val totalFacts = facts.length
