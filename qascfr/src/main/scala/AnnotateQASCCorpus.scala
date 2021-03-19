@@ -19,12 +19,12 @@ object AnnotateQASCCorpus extends App {
 
   // Annotate the facts as document objects
   val totalFacts = facts.length
-  val chunks = facts.sliding(10000, 10000)
+  val chunks = facts.sliding(10000, 10000).toList
   val percent = totalFacts / 100
   val updatePercentage = 10
   println("Annotating documents")
 //  val docs =
-    for((chunk, ix) <- chunks.zipWithIndex) {
+    for((chunk, ix) <- chunks.zipWithIndex.par) {
       val done = (ix + 1) * 10000
 
       println(s"$done (${(done.toFloat/totalFacts)*100}%) ...")
