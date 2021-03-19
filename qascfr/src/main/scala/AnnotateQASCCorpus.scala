@@ -22,7 +22,7 @@ object AnnotateQASCCorpus extends App {
   val updatePercentage = 10
   println("Annotating documents")
 //  val docs =
-    for((chunk, ix) <- chunks.zipWithIndex) yield {
+    for((chunk, ix) <- chunks.zipWithIndex) {
       val done = (ix + 1) * 10000
 
       println(s"$done (${(done.toFloat/totalFacts)*100}%) ...")
