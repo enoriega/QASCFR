@@ -17,19 +17,21 @@ object AnnotateQASCCorpus extends App {
 
   // Annotate the facts as document objects
   val totalFacts = facts.length
+  val chunks = facts.sliding(10000, 10000)
   val percent = totalFacts / 100
   val updatePercentage = 10
   println("Annotating documents")
-  val docs =
-    for((fact, ix) <- facts.zipWithIndex) yield {
-      val done = ix + 1
-      if((done)%(percent*updatePercentage) == 0){
-        println(s"$done (${(done.toFloat/totalFacts)*100}%) ...")
-      }
-      processor.annotate(fact)
+//  val docs =
+    for((chunk, ix) <- chunks.zipWithIndex) yield {
+      val done = (ix + 1) * 10000
+
+      println(s"$done (${(done.toFloat/totalFacts)*100}%) ...")
+
+      val doc = processor.annotateFromSentences(chunk)
+      Serializer.save(doc, s"QASC_annotations_$ix.ser") // TODO: Parameterize output name
     }
-  println("Saving results")
-  Serializer.save(docs.seq.toArray, "QASC_annotations.ser") // TODO: Parameterize output name
+//  println("Saving results")
+
 
 
 }
