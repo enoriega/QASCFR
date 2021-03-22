@@ -1,6 +1,23 @@
+import org.clulab.processors.Document
 import org.clulab.processors.clu.CluProcessor
 import org.clulab.processors.corenlp.CoreNLPProcessor
 import org.clulab.utils.Serializer
+
+class MyCoreNLPProcessor extends CoreNLPProcessor {
+  override def annotate(doc: Document): Document = {
+    tagPartsOfSpeech(doc)
+    lemmatize(doc)
+//    recognizeNamedEntities(doc)
+    parse(doc)
+    chunking(doc)
+//    relationExtraction(doc)
+//    srl(doc)
+//    resolveCoreference(doc)
+//    discourse(doc)
+    doc.clear()
+    doc
+  }
+}
 
 object AnnotateQASCCorpus extends App {
   // Path  to the corpus TODO: Patameterize
@@ -12,8 +29,9 @@ object AnnotateQASCCorpus extends App {
   src.close()
 
   // Instantiate a processors instance to generate the doc object
-  org.clulab.dynet.Utils.initializeDyNet()
-  val processor = new CluProcessor()
+//  org.clulab.dynet.Utils.initializeDyNet()
+//  val processor = new CluProcessor()
+  val processor = new MyCoreNLPProcessor()
   // Initialize the processor
   processor.annotate("Test")
 
