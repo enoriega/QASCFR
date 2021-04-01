@@ -1,0 +1,29 @@
+vars:
+  hearsaytrigger: "/hear|believe|think/"
+  unlikelytrigger: "[lemma=/^(unlikely|doubtful)/]"
+  likelytrigger: "[lemma=/^(likely)/]"
+
+rules:
+  - name: agent_object
+    label: Event
+    priority: ${rulepriority}
+    pattern: |
+      trigger = [chunk=/^B-V/] [chunk=/^I-V/]* [chunk=/-PP/]*
+      agent:NounPhrase = /nsubj/
+      object: NounPhrase = dobj | xcomp | /advcl_/ | /nmod_/
+
+  - name: reason_of
+    label: Event
+    priority: ${rulepriority}
+    pattern: |
+      trigger = [chunk=/^B-V/] [chunk=/^I-V/]*
+      agent:NounPhrase = /nsubj/
+      object: NounPhrase = /advcl_/ /nmod_/
+
+  - name: to_be
+    label: Event
+    priority: ${rulepriority}
+    pattern: |
+      trigger = [chunk=/^B-V/] [chunk=/^I-V/]*
+      agent:NounPhrase = <cop /nsubj/
+      object: NounPhrase = <cop

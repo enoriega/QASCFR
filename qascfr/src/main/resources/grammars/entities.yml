@@ -1,0 +1,15 @@
+# NE rules
+- name: "chunk-noun"
+  label: NounPhrase
+  priority: ${rulepriority}
+  type: token
+  pattern: |
+    [chunk=/-NP$/]+ [chunk=/-PP$/]* [chunk=/-NP$/]* ([tag=CC | chunk=/-PP$/] [chunk=/-NP$/]+ [chunk=/-PP$/]* [chunk=/-NP$/]*)*
+
+#- name: "chunk-verb"
+#  label: Predicate
+#  priority: ${rulepriority}
+#  type: token
+#  pattern: |
+#    [chunk=/^B-V/] [chunk=/^I-V/]*
+
