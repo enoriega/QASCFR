@@ -9,7 +9,7 @@ import scala.util.matching.Regex
 
 package object utils {
 
-  val stopWords = "i\nme\nmy\nmyself\nwe\nour\nours\nourselves\nyou\nyour\nyours\nyourself\nyourselves\nhe\nhim\nhis\nhimself\nshe\nher\nhers\nherself\nit\nits\nitself\nthey\nthem\ntheir\ntheirs\nthemselves\nwhat\nwhich\nwho\nwhom\nthis\nthat\nthese\nthose\nam\nis\nare\nwas\nwere\nbe\nbeen\nbeing\nhave\nhas\nhad\nhaving\ndo\ndoes\ndid\ndoing\na\nan\nthe\nand\nbut\nif\nor\nbecause\nas\nuntil\nwhile\nof\nat\nby\nfor\nwith\nabout\nagainst\nbetween\ninto\nthrough\nduring\nbefore\nafter\nabove\nbelow\nto\nfrom\nup\ndown\nin\nout\non\noff\nover\nunder\nagain\nfurther\nthen\nonce\nhere\nthere\nwhen\nwhere\nwhy\nhow\nall\nany\nboth\neach\nfew\nmore\nmost\nother\nsome\nsuch\nno\nnor\nnot\nonly\nown\nsame\nso\nthan\ntoo\nvery\ns\nt\ncan\nwill\njust\ndon\nshould\nnow\n's".split("\n").toSet
+  val stopWords = "i\nme\nmy\nmyself\nwe\nour\nours\nourselves\nyou\nyour\nyours\nyourself\nyourselves\nhe\nhim\nhis\nhimself\nshe\nher\nhers\nherself\nit\nits\nitself\nthey\nthem\ntheir\ntheirs\nthemselves\nwhat\nwhich\nwho\nwhom\nthis\nthat\nthese\nthose\nam\nis\nare\nwas\nwere\nbe\nbeen\nbeing\nhave\nhas\nhad\nhaving\ndo\ndoes\ndid\ndoing\na\nan\nthe\nand\nbut\nif\nor\nbecause\nas\nuntil\nwhile\nof\nat\nby\nfor\nwith\nabout\nagainst\nbetween\ninto\nthrough\nduring\nbefore\nafter\nabove\nbelow\nto\nfrom\nup\ndown\nin\nout\non\noff\nover\nunder\nagain\nfurther\nthen\nonce\nhere\nthere\nwhen\nwhere\nwhy\nhow\nall\nany\nboth\neach\nfew\nmore\nmost\nother\nsome\nsuch\nno\nnor\nnot\nonly\nown\nsame\nso\nthan\ntoo\nvery\ns\nt\ncan\nwill\njust\ndon\nshould\nnow\n's".split("\n").toSet ++ io.Source.fromFile("black_list.txt").getLines().toSet
 
   val numRegex = "^\\$?\\d+([\\.\\-]*\\d*)*".r
 
@@ -73,18 +73,26 @@ package object utils {
     }
   }
 
-  def processText(lemmas:Seq[String]):Seq[String] = {
-    lemmas map (_.toLowerCase) filterNot (l => (stopWords contains l)) filter (_.length > 1) filterNot (l => numRegex.pattern.matcher(l).matches)
+  def processText(lemmas:Seq[String], tags:Seq[String]):Seq[String] = {
+    (lemmas zip tags) map {
+      case (l, t) => (l.toLowerCase, t.toLowerCase)
+    } filterNot {
+      case (l, _) => (stopWords contains l)
+    } filter {
+      case (l, t) => l.length > 1 && (t.startsWith("n") || t.startsWith("j")) // Keep only nouns or adjectives
+    } filterNot {
+      case (l, _) => numRegex.pattern.matcher(l).matches
+    } map (_._1)
   }
 
-  def processText(lemmas:String): Seq[String] = processText(lemmas.split(" "))
+//  def processText(lemmas:String): Seq[String] = processText(lemmas.split(" "))
 
-  def processText(mention:TextBoundMention): Option[Seq[String]] = {
-    mention.lemmas match {
-      case Some(lemmas) => Some(processText(lemmas))
-      case None => None
-    }
-  }
+//  def processText(mention:TextBoundMention): Option[Seq[String]] = {
+//    mention.lemmas match {
+//      case Some(lemmas) => Some(processText(lemmas))
+//      case None => None
+//    }
+//  }
 //
 //  def computeAllIntersections(frozenSets:Iterable[Set[String]]):List[Set[String]] = {
 //    if(frozenSets.isEmpty)

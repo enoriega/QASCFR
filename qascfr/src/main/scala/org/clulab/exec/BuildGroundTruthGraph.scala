@@ -58,7 +58,7 @@ object BuildGroundTruthGraph extends App with LazyLogging {
 
   // Now, process the relations to get the bag of lemmas for each participant, which will be used to generate the nodes
   logger.info("Computing bags of lemmas")
-  val bagsOfLemmas:Map[String, Set[String]] = relations.flatten.flatMap(r => Iterable(r.agent, r.obj)).map(m => m.words.mkString(" ") -> processText(m.lemmas).toSet).toMap
+  val bagsOfLemmas:Map[String, Set[String]] = relations.flatten.flatMap(r => Iterable(r.agent, r.obj)).map(m => m.words.mkString(" ") -> processText(m.lemmas, m.tags).toSet).toMap
   logger.info("Finished computing bags of lemmas")
   logger.info(s"Number of nodes: ${bagsOfLemmas.size}")
 
@@ -100,13 +100,13 @@ object BuildGroundTruthGraph extends App with LazyLogging {
     }
 
     // Build and save an incidence list
-//    for{(entity, bag) <- bags}  {
-//      val eix = entityIndex(entity)
-//      val connections =
-//        bag flatMap wordsToEntities filter (eix != _)
-//
-//      incidencesOutputStream.println(s"$eix\t${connections.mkString("\t")}")
-//    }
+    for{(entity, bag) <- bags}  {
+      val eix = entityIndex(entity)
+      val connections =
+        bag flatMap wordsToEntities filter (eix != _)
+
+      incidencesOutputStream.println(s"$eix\t${connections.mkString("\t")}")
+    }
 
     entityOutputStream.close()
     lemmasOutputStream.close()
