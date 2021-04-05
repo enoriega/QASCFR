@@ -1,11 +1,10 @@
-import org.clulab.processors.Document
-import org.clulab.processors.clu.CluProcessor
-import org.clulab.processors.corenlp.CoreNLPProcessor
+package org.clulab.exec
+
 import org.clulab.utils.Serializer
 
 object AnnotateQASCQuestions extends App {
   // Path  to the corpus TODO: Patameterize
-  val inputPath = "train.tsv"
+  val inputPath = "dev.tsv"
 
   // Read the lines lazily
   val src = io.Source.fromFile(inputPath)
@@ -32,11 +31,11 @@ object AnnotateQASCQuestions extends App {
 //  val docs =
 //    for((chunk, ix) <- chunks.zipWithIndex.par) {
 //      val done = (ix + 1) * 10000
-//
+//=-=
 //      println(s"$done (${(done.toFloat/totalQuestions)*100}%) ...")
 
       val doc = processor.annotateFromSentences(sentences)
-      Serializer.save(doc, s"QASC_questions_train.ser") // TODO: Parameterize output name
+      Serializer.save(doc, s"QASC_questions_dev.ser") // TODO: Parameterize output name
 //    }
 //  println("Saving results")
 

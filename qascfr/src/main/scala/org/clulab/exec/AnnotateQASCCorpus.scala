@@ -1,5 +1,6 @@
+package org.clulab.exec
+
 import org.clulab.processors.Document
-import org.clulab.processors.clu.CluProcessor
 import org.clulab.processors.corenlp.CoreNLPProcessor
 import org.clulab.utils.Serializer
 
