@@ -40,8 +40,10 @@ object BuildGroundTruthGraph extends App with LazyLogging {
   val relations = mutable.ListBuffer[Seq[Relation]]()
 
   var rels:Option[Seq[Relation]] = None
+  var i = 0
   do {
     rels = readRelations(ois)
+    i += 1
     rels match {
       case Some(r) =>
         relations += r
@@ -49,20 +51,6 @@ object BuildGroundTruthGraph extends App with LazyLogging {
     }
   }while(rels.isDefined)
 
-
-//  println(i)
-
-//  val relations = ListBuffer[Seq[Relation]]()
-//
-//  try{
-//    while(true){
-//      val rs = ois.readObject().asInstanceOf[Seq[Relation]]
-//      relations += rs
-//    }
-//  }
-//  catch {
-//    case _:EOFException => () // Means we are done reading the file
-//  }
 
   ois.close()
   logger.info("Finished loading the relations")
@@ -84,14 +72,15 @@ object BuildGroundTruthGraph extends App with LazyLogging {
     val vocabulary = new mutable.HashSet[String]()
 
     // Build an index from words to lemmas
-    val wordsToLemmas = new mutable.HashMap[String, List[Set[String]]]().withDefaultValue(Nil)
-    val wordsToEntities = new mutable.HashMap[String, List[String]]().withDefaultValue(Nil)
+//    val wordsToBagOfLemmas = new mutable.HashMap[String, List[Set[String]]]().withDefaultValue(Nil)
+    val wordsToEntities = new mutable.HashMap[String, List[Int]]().withDefaultValue(Nil)
     val entityIndex = new mutable.HashMap[String, Int]()
 
     // Streams to save the output
     val entityOutputStream = new PrintWriter("entity_codes.tsv")
     val lemmasOutputStream = new PrintWriter("lemmas.tsv")
     val incidencesOutputStream = new PrintWriter("graph.tsv")
+    val wordsToEntitiesOutputStream = new PrintWriter("words2Entities.tsv")
 
     // Populate the data structures
     for{((entity, bag), ix) <- bags.zipWithIndex}
@@ -101,22 +90,28 @@ object BuildGroundTruthGraph extends App with LazyLogging {
       entityIndex += entity -> ix
       for(word <- bag) {
         vocabulary += word
-        wordsToLemmas(word) = bag :: wordsToLemmas(word)
-        wordsToEntities(word) = entity :: wordsToEntities(word)
+//        wordsToBagOfLemmas(word) = bag :: wordsToBagOfLemmas(word)
+        wordsToEntities(word) = ix :: wordsToEntities(word)
       }
     }
 
-    // Build and save an incidence list
-    for{(entity, bag) <- bags}  {
-      val connections =
-        bag flatMap wordsToEntities withFilter (entity != _) map entityIndex
-
-      incidencesOutputStream.println(s"${entityIndex(entity)}\t${connections.mkString("\t")}")
+    for((word, incidences) <- wordsToEntities){
+        wordsToEntitiesOutputStream.println(s"$word\t${incidences.length}\t${incidences.mkString("\t")}")
     }
+
+    // Build and save an incidence list
+//    for{(entity, bag) <- bags}  {
+//      val eix = entityIndex(entity)
+//      val connections =
+//        bag flatMap wordsToEntities filter (eix != _)
+//
+//      incidencesOutputStream.println(s"$eix\t${connections.mkString("\t")}")
+//    }
 
     entityOutputStream.close()
     lemmasOutputStream.close()
     incidencesOutputStream.close()
+    wordsToEntitiesOutputStream.close()
   }
 
   logger.info("Finished computing all intersections")
