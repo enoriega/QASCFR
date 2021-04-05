@@ -65,9 +65,9 @@ object BuildGroundTruthGraph extends App with LazyLogging {
   // Compute all the intersections, which will become nodes on the graph
   logger.info("Computing all intersections")
 
-  buildEdges(bagsOfLemmas)
+  buildIntersectionEdges(bagsOfLemmas, relations.flatten)
 
-  private def buildEdges(bags:Map[String, Set[String]]) = {
+  private def buildIntersectionEdges(bags:Map[String, Set[String]], rels:Iterable[Relation]) = {
     // To optimize, we are going to test intersection against the words instead of against the lemmas
     val vocabulary = new mutable.HashSet[String]()
 
@@ -81,6 +81,7 @@ object BuildGroundTruthGraph extends App with LazyLogging {
     val lemmasOutputStream = new PrintWriter("lemmas.tsv")
     val incidencesOutputStream = new PrintWriter("graph.tsv")
     val wordsToEntitiesOutputStream = new PrintWriter("words2Entities.tsv")
+    val extractedRelationsOutputStream = new PrintWriter("extractedEdges.tsv")
 
     // Populate the data structures
     for{((entity, bag), ix) <- bags.zipWithIndex}
@@ -90,7 +91,6 @@ object BuildGroundTruthGraph extends App with LazyLogging {
       entityIndex += entity -> ix
       for(word <- bag) {
         vocabulary += word
-//        wordsToBagOfLemmas(word) = bag :: wordsToBagOfLemmas(word)
         wordsToEntities(word) = ix :: wordsToEntities(word)
       }
     }
@@ -100,18 +100,27 @@ object BuildGroundTruthGraph extends App with LazyLogging {
     }
 
     // Build and save an incidence list
-    for{(entity, bag) <- bags}  {
-      val eix = entityIndex(entity)
-      val connections =
-        bag flatMap wordsToEntities filter (eix != _)
+//    for{(entity, bag) <- bags}  {
+//      val eix = entityIndex(entity)
+//      val connections =
+//        bag flatMap wordsToEntities filter (eix != _)
+//
+//      incidencesOutputStream.println(s"$eix\t${connections.mkString("\t")}")
+//    }
 
-      incidencesOutputStream.println(s"$eix\t${connections.mkString("\t")}")
+    // Save the extracted relations
+    for(r <- rels){
+      val agent = r.agent.words.mkString(" ")
+      val obj = r.obj.words.mkString(" ")
+      val pred = r.predicate.words.mkString(" ")
+      extractedRelationsOutputStream.println(s"${entityIndex(agent)}\t${entityIndex(obj)}\t$pred")
     }
 
     entityOutputStream.close()
     lemmasOutputStream.close()
     incidencesOutputStream.close()
     wordsToEntitiesOutputStream.close()
+    extractedRelationsOutputStream.close()
   }
 
   logger.info("Finished computing all intersections")
