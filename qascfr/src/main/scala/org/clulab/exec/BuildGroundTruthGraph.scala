@@ -100,13 +100,13 @@ object BuildGroundTruthGraph extends App with LazyLogging {
     }
 
     // Build and save an incidence list
-//    for{(entity, bag) <- bags}  {
-//      val eix = entityIndex(entity)
-//      val connections =
-//        bag flatMap wordsToEntities filter (eix != _)
-//
-//      incidencesOutputStream.println(s"$eix\t${connections.mkString("\t")}")
-//    }
+    for{(entity, bag) <- bags}  {
+      val eix = entityIndex(entity)
+      val connections =
+        bag flatMap wordsToEntities filter (eix != _)
+
+      incidencesOutputStream.println(s"$eix\t${connections.mkString("\t")}")
+    }
 
     // Save the extracted relations
     for(r <- rels){
