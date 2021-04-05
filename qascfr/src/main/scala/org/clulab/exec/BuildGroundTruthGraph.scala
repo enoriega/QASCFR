@@ -49,7 +49,7 @@ object BuildGroundTruthGraph extends App with LazyLogging {
         relations += r
       case None => ()
     }
-  }while(rels.isDefined)
+  }while(i <= 10)
 
 
   ois.close()
