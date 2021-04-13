@@ -18,7 +18,7 @@ object NounPhraseExtractor extends App {
   // creates an extractor engine using the rules and the default actions
   val extractor = ExtractorEngine(rules)
 
-  val path = "/media/wdblue/github/QASCFR/qascfr/QASC_questions_train.ser"
+  val path = "/media/wdblue/github/QASCFR/qascfr/QASC_questions_dev.ser"
 
 
   val doc = Serializer.load[Document](path)
@@ -30,17 +30,17 @@ object NounPhraseExtractor extends App {
   }.sortBy(m => m.sentence).groupBy(_.sentence)
 
 
-
+  println(doc.sentences.size)
   println(mentions.values.flatten.size)
   val lines =
     mentions.map{
       case (_, ms)=>
-        ms.map(m => m.lemmas.get.mkString(" ")).mkString("\t") + s"\t${ms.head.sentenceObj.getSentenceText}"
+        ms.map(m => m.lemmas.get.mkString(" ") + "|" + m.tags.get.mkString(" ")).mkString("\t")  + s"\t${ms.head.sentenceObj.getSentenceText}"
     }
 
-  val pw = new PrintWriter("extractions_train.tsv")
+  val pw = new PrintWriter("extractions_dev.tsv")
   lines foreach pw.println
   pw.close()
 
-  Serializer.save(mentions, "extractions_train.ser")
+  Serializer.save(mentions, "extractions_dev.ser")
 }

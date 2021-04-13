@@ -9,7 +9,11 @@ if __name__ == "__main__":
             data = json.loads(l)
             key = data["id"]
             sent = data["question"]['stem']
-            questions[key] = sent
+            choices = {c['label']:c['text'] for c in data["question"]["choices"]}
+            answer = choices[data['answerKey']]
+            questions[key] = (sent, answer)
+
+
 
     for k, v in questions.items():
-        print(f"{k}\t{v}")    
+        print(f"{k}\t{v[0]}\t{v[1]}")

@@ -73,13 +73,23 @@ package object utils {
     }
   }
 
-  def processText(lemmas:Seq[String], tags:Seq[String]):Seq[String] = {
+  def processText(lemmas:Seq[String], tags:Seq[String], checkTags:Boolean = true):Seq[String] = {
     (lemmas zip tags) map {
       case (l, t) => (l.toLowerCase, t.toLowerCase)
     } filterNot {
       case (l, _) => (stopWords contains l)
     } filter {
-      case (l, t) => l.length > 1 && (t.startsWith("n") || t.startsWith("j")) // Keep only nouns or adjectives
+      case (l, t) => {
+        if(l.length > 1){
+          if(checkTags)
+            t.startsWith("n") || t.startsWith("j") // Keep only nouns or adjectives
+          else
+            true
+        }
+        else
+          false
+      }
+
     } filterNot {
       case (l, _) => numRegex.pattern.matcher(l).matches
     } map (_._1)
