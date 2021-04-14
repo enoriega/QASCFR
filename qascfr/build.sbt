@@ -32,7 +32,12 @@ libraryDependencies ++= {
   Seq(
     "org.clulab" %% "processors-main" % procVer,
     "org.clulab" %% "processors-corenlp" % procVer,
-    "org.clulab" %% "processors-odin" % procVer
+    "org.clulab" %% "processors-odin" % procVer,
+    "org.apache.lucene" % "lucene-core" % "8.8.2",
+    "org.apache.lucene" % "lucene-analyzers-common" % "8.8.2",
+    "org.apache.lucene" % "lucene-queryparser" % "8.8.2",
+    "org.apache.commons" % "commons-lang3" % "3.12.0",
+    "org.apache.commons" % "commons-text" % "1.9"
   )
 }
 

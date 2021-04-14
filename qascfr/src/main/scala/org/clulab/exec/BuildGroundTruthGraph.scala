@@ -45,7 +45,7 @@ object BuildGroundTruthGraph extends App with LazyLogging {
         relations += r
       case None => ()
     }
-  }while(rels.isDefined)
+  }while(i <= 10)
 
 
   ois.close()
@@ -69,7 +69,7 @@ object BuildGroundTruthGraph extends App with LazyLogging {
   def buildIntersectionEdges(rels:Iterable[Relation]) = {
     // To optimize, we are going to test intersection against the words instead of against the lemmas
     val entityIndex = new mutable.HashMap[String, Int]()
-    val edges = new mutable.HashSet[(String, String, String)]()
+    val edges = new mutable.HashSet[(String, String, String, String)]()
     var runningIndex = 0
     // Extract all the entities from the relations
     for(r <- rels){
@@ -88,7 +88,7 @@ object BuildGroundTruthGraph extends App with LazyLogging {
         runningIndex += 1
       }
 
-      edges += Tuple3(agentTxt, objTxt, r.predicate.words.mkString(" "))
+      edges += Tuple4(agentTxt, objTxt, r.predicate.words.mkString(" "), r.text)
     }
 
 
@@ -104,8 +104,8 @@ object BuildGroundTruthGraph extends App with LazyLogging {
     }
 
     // Save the extracted relations
-    for((agent, obj, pred) <- edges){
-      extractedRelationsOutputStream.println(s"${entityIndex(agent)}\t${entityIndex(obj)}\t$pred")
+    for((agent, obj, pred, sent) <- edges){
+      extractedRelationsOutputStream.println(s"${entityIndex(agent)}\t${entityIndex(obj)}\t$pred\t$sent")
     }
 
     entityOutputStream.close()
