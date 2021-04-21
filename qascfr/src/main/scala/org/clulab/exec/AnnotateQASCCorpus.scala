@@ -49,7 +49,8 @@ object AnnotateQASCCorpus extends App {
       println(s"$done (${(done.toFloat/totalFacts)*100}%) ...")
 
       val doc = processor.annotateFromSentences(chunk)
-      Serializer.save(doc, s"QASC_annotations_$ix.ser") // TODO: Parameterize output name
+      assert(doc.sentences.size == chunk.size, s"Mismatch in the number of sentences for chunk $ix")
+      Serializer.save((chunk, doc), s"QASC_annotations_$ix.ser") // TODO: Parameterize output name
     }
 //  println("Saving results")
 
