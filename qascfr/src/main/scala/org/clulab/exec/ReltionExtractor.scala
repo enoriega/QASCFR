@@ -53,7 +53,7 @@ object ReltionExtractor extends App {
       case m: EventMention =>
         val agent = m.arguments("agent").head.asInstanceOf[TextBoundMention]
         val obj = m.arguments("object").head.asInstanceOf[TextBoundMention]
-        Relation(m.trigger, agent, obj, m.text)
+        Relation(m.trigger, agent, obj, m.sentenceObj.getSentenceText)
     }
 
     serialize(data)
