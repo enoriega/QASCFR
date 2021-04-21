@@ -3,6 +3,7 @@ import csv
 from tqdm import tqdm
 import itertools as it
 from networkx import NetworkXNoPath
+from collections import defaultdict
 
 with open('entity_codes.tsv') as f:
     reader = csv.reader(f, delimiter='\t')
@@ -44,8 +45,10 @@ def resolve_question(start_points, end_points, g):
     return []
 
 g = nx.DiGraph()
+sentence_index = defaultdict(list)
 for agent, obj, pred, sentence in tqdm(edges, desc="Loading graph"):
     g.add_edge(agent, obj, label=pred, sent=sentence)
+    sentence_index[sentence].append((agent, obj))
 
 matched = 0
 matches = dict()

@@ -27,6 +27,6 @@ rules:
       # used in the entities.yml rules
       rulepriority: "1"
 
-  - import: grammars/events.yml
-    vars:
-      rulepriority: "3+"
+#  - import: grammars/events.yml
+#    vars:
+#      rulepriority: "3+"

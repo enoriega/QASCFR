@@ -1,11 +1,12 @@
 package org.clulab.exec
 
-import org.clulab.Relation
+import org.clulab.{MentionData, Relation}
 import org.clulab.odin.{EventMention, ExtractorEngine, TextBoundMention}
 import org.clulab.processors.Document
 import org.clulab.utils.Serializer
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
+import scala.collection.mutable
 
 object ReltionExtractor extends App {
 
@@ -42,19 +43,38 @@ object ReltionExtractor extends App {
   for ((path, ix) <- paths.zipWithIndex.par)  {
     val doc = Serializer.load[Document](path.getAbsolutePath)
 
-//    println(s"Extracting from ${ix + 1} out of ${paths.size}...")
-    // extract mentions from annotated document
-    val mentions = extractor.extractFrom(doc).sortBy(m => (m.sentence, m.getClass.getSimpleName))
+//    // extract mentions from annotated document
+//    val mentions = extractor.extractFrom(doc).sortBy(m => (m.sentence, m.getClass.getSimpleName))
+//
+//    val data =
+//    mentions collect {
+//      case m: EventMention =>
+//        val agent = m.arguments("agent").head.asInstanceOf[TextBoundMention]
+//        val obj = m.arguments("object").head.asInstanceOf[TextBoundMention]
+//        Relation(m.trigger, agent, obj, m.sentenceObj.getSentenceText)
+//    }
 
-    // display the mentions
-    //  displayMentions(mentions, doc)
+    // extract mentions from annotated document
+    val mentionsBySent = extractor.extractFrom(doc).groupBy(m => m.sentence)
+
+    val dummy = MentionData(Seq.empty[String], Seq.empty[String], Seq.empty[String])
+
     val data =
-    mentions collect {
-      case m: EventMention =>
-        val agent = m.arguments("agent").head.asInstanceOf[TextBoundMention]
-        val obj = m.arguments("object").head.asInstanceOf[TextBoundMention]
-        Relation(m.trigger, agent, obj, m.sentenceObj.getSentenceText)
-    }
+      mentionsBySent flatMap {
+        case (_, mentions) =>
+          val sentObj = mentions.head.sentenceObj
+          val seen = new mutable.HashSet[(String, String)]()
+
+          for {
+            a <- mentions
+            b <- mentions
+            if a != b
+            if !seen.contains((a.text, b.text)) && !seen((a.text, b.text))
+          } yield {
+            seen += Tuple2(a.text, b.text)
+            Relation(dummy, a.asInstanceOf[TextBoundMention], b.asInstanceOf[TextBoundMention], sentObj.getSentenceText)
+          }
+      }
 
     serialize(data)
   }
