@@ -4,13 +4,13 @@ import org.clulab.utils.Serializer
 
 object AnnotateQASCQuestions extends App {
   // Path  to the corpus TODO: Patameterize
-  val inputPath = "dev.tsv"
+  val inputPath = "train.tsv"
 
   // Read the lines lazily
   val src = io.Source.fromFile(inputPath)
   val questions = src.getLines().map(l => {
     val toks = l.trim.split("\t")
-    toks.head -> toks.last
+    toks.head -> toks(1)
   }).toMap
   src.close()
 
@@ -27,7 +27,7 @@ object AnnotateQASCQuestions extends App {
 //  val percent = totalQuestions / 100
 //  val updatePercentage = 10
   println("Annotating questions")
-  val sentences = questions.values
+  val (ids, sentences) = questions.unzip
 //  val docs =
 //    for((chunk, ix) <- chunks.zipWithIndex.par) {
 //      val done = (ix + 1) * 10000
@@ -35,7 +35,7 @@ object AnnotateQASCQuestions extends App {
 //      println(s"$done (${(done.toFloat/totalQuestions)*100}%) ...")
 
       val doc = processor.annotateFromSentences(sentences)
-      Serializer.save(doc, s"QASC_questions_dev.ser") // TODO: Parameterize output name
+      Serializer.save((ids, doc), s"QASC_questions_train.ser") // TODO: Parameterize output name
 //    }
 //  println("Saving results")
 

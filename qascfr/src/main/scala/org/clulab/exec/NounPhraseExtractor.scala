@@ -18,10 +18,10 @@ object NounPhraseExtractor extends App {
   // creates an extractor engine using the rules and the default actions
   val extractor = ExtractorEngine(rules)
 
-  val path = "/media/wdblue/github/QASCFR/qascfr/QASC_questions_dev.ser"
+  val path = "QASC_questions_train.ser"
 
 
-  val doc = Serializer.load[Document](path)
+  val (ids, doc) = Serializer.load[(Seq[String], Document)](path)
 
   // extract mentions from annotated document
   val mentions = extractor.extractFrom(doc).filter {
@@ -34,13 +34,14 @@ object NounPhraseExtractor extends App {
   println(mentions.values.flatten.size)
   val lines =
     mentions.map{
-      case (_, ms)=>
-        ms.map(m => m.lemmas.get.mkString(" ") + "|" + m.tags.get.mkString(" ")).mkString("\t")  + s"\t${ms.head.sentenceObj.getSentenceText}"
+      case (ix, ms)=>
+        val id = ids(ix)
+        id + "\t" + ms.map(m =>  m.lemmas.get.mkString(" ") + "|" + m.tags.get.mkString(" ")).mkString("\t")  + s"\t${ms.head.sentenceObj.getSentenceText}"
     }
 
-  val pw = new PrintWriter("extractions_dev.tsv")
+  val pw = new PrintWriter("extractions_train.tsv")
   lines foreach pw.println
   pw.close()
 
-  Serializer.save(mentions, "extractions_dev.ser")
+  Serializer.save(mentions, "extractions_train.ser")
 }

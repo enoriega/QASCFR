@@ -7,7 +7,7 @@ import org.apache.lucene.index.{DirectoryReader, IndexWriter, IndexWriterConfig}
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.RAMDirectory
-import org.clulab.utils.processText
+import org.clulab.utils.{processText, stopWords}
 
 import java.io.{FileOutputStream, PrintWriter}
 
@@ -80,6 +80,12 @@ object EmbedQuestion extends App with LazyLogging{
         src.getLines().toList
     }
 
+  val phrasesLines =
+    using(io.Source.fromFile("extractions_train.tsv")){
+      src =>
+        src.getLines().toList
+    }
+
   val (questions, answers) =
     dataLines.map{
       line =>
@@ -100,10 +106,28 @@ object EmbedQuestion extends App with LazyLogging{
   val questionTexts = questions.values.toList
   logger.info(s"${questionTexts.length} questions")
 
+  logger.info("Reading phrases")
+  val phrases =
+    phrasesLines.map{
+      line =>
+        val tokens = line.split("\t")
+        val key = tokens(0)
+        val phrases = tokens.tail.dropRight(1)
+        key -> phrases.map{
+          phrase =>
+            phrase.split("\\|").head.replace("_", "").replace("(", "").replace(")", "").trim.split(" ").filterNot(w => stopWords.contains(w)).mkString(" ")
+        }.filter(_ != "")
+    }.toMap
+
   val entities = entityIndex.keys
 
   using(new PrintWriter(new FileOutputStream("question_endpoints.tsv"))){
     pw =>
+      var exactStarts = 0
+      var exactEnds = 0
+      var exactPairs = 0
+      var eitherEnd = 0
+
       questions.zipWithIndex.foreach{
         case ((key, line), ix) =>
           val tokens = line.split("\t").reverse
@@ -111,12 +135,42 @@ object EmbedQuestion extends App with LazyLogging{
           val wordsInQuestion =
             processText(question.toLowerCase.split(" "), question.toLowerCase.split(" "), checkTags = false).mkString(" ")
 
+          val phrasesInQuestions = phrases.getOrElse(key, Array.empty[String])
+
 
           val answer =
             processText(answers(key).toLowerCase().split(" "), answers(key).toLowerCase().split(" "), checkTags = false).mkString(" ")
 
+          var (exactStart, exactEnd) = (false, false)
 
-          val candidateEntryPoints = queryLucene(wordsInQuestion, 10, searcher)
+          val entryPoints = {
+            if(phrasesInQuestions.isEmpty)
+              queryLucene(wordsInQuestion, 10, searcher)
+            else{
+              phrasesInQuestions flatMap {
+                phrase =>
+                  val candidateStartPoints = {
+                    if(answer.nonEmpty)
+                      queryLucene(phrase, hitsPerPage = 10, searcher)
+                    else
+                      Array.empty[String]
+                  }
+
+                  val extactMatch = candidateStartPoints filter (_ == phrase)
+
+                  if(extactMatch.nonEmpty) {
+                    exactStart = true
+                    extactMatch
+                  }
+                  else
+                    candidateStartPoints.take(1)
+              }
+            }
+
+          }
+
+          //          val entryPoints = candidateEntryPoints filter(_ ==
+
           val candidateEndPoints = {
             if(answer.nonEmpty)
               queryLucene(answer, hitsPerPage = 10, searcher)
@@ -127,16 +181,40 @@ object EmbedQuestion extends App with LazyLogging{
           val extactAnswerMatch = candidateEndPoints filter (_ == answer)
 
           val endpoints =
-            if(extactAnswerMatch.length > 0)
+            if(extactAnswerMatch.length > 0) {
+              exactEnd = true
               Array(answer)
+            }
             else
               candidateEndPoints
 
-          pw.println(s"$key\t$question\t${answers(key)}\t${candidateEntryPoints.mkString("|")}\t${endpoints.mkString("|")}")
+          val kind = {
+            if(exactStart && exactEnd){
+              exactStarts += 1
+              exactEnds += 1
+              exactPairs += 1
+              eitherEnd += 1
+              "exact pair"
+            }
+            else if(exactStart) {
+              exactStarts += 1
+              eitherEnd += 1
+              "exact start"
+            }
+            else if(exactEnd) {
+              exactEnds += 1
+              eitherEnd += 1
+              "exact end"
+            }
+            else
+              "inexact"
+          }
+          pw.println(s"$key\t$question\t${answers(key)}\t${entryPoints.mkString("|")}\t${endpoints.mkString("|")}\t$kind")
           if(ix % 100 == 0)
             logger.info(s"$ix out of ${questionTexts.length} done")
       }
       logger.info("Finished reading questions")
+      logger.info(s"Exact starts: $exactStarts\tExact ends: $exactEnds\tExact pairs: $exactPairs\tEither end: $eitherEnd")
   }
 
 }
