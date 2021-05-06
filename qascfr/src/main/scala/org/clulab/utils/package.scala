@@ -3,6 +3,7 @@ package org.clulab
 import org.clulab.odin._
 import org.clulab.processors.{Document, Sentence}
 
+import java.io.File
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.matching.Regex
@@ -127,6 +128,30 @@ package object utils {
       intersections ++= (moreIntersections)
     }
     intersections.toList
+  }
+
+  type Closable = { def close(): Unit }
+
+  def using[A <: Closable, B](resource: A)(f: A => B): B = {
+    try {
+      f(resource)
+    } finally {
+      resource.close()
+    }
+  }
+
+  def cacheResult[B](path:String, overwrite:Boolean = false)(f: () => B): B ={
+    val file = new File(path)
+    val result =
+      if(overwrite || !file.exists()) {
+        val r = f()
+        Serializer.save(r, file)
+        r
+      }
+      else
+        Serializer.load[B](file)
+
+    result
   }
 
 }
