@@ -2,15 +2,6 @@ taxonomy:
   - Entity:
       - NounPhrase
       - Predicate
-  - Location
-  - Event:
-      - Eat
-      - Witnessed
-      - Belief:
-          - HearSay
-      - Likelihood:
-          - Likely
-          - Unlikely
 
 
 vars:

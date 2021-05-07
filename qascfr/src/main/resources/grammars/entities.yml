@@ -6,6 +6,49 @@
   pattern: |
     [chunk=/-NP$/]+ [chunk=/-PP$/]* [chunk=/-NP$/]* ([tag=CC | chunk=/-PP$/] [chunk=/-NP$/]+ [chunk=/-PP$/]* [chunk=/-NP$/]*)*
 
+- name: "tag-nouns"
+  label: NounPhrase
+  priority: ${rulepriority}
+  type: token
+  pattern: |
+    [tag=/^N/]+
+
+- name: "tag-single-noun"
+  label: NounPhrase
+  priority: ${rulepriority}
+  type: token
+  pattern: |
+    [tag=/^N/]
+
+- name: "dep-verb"
+  label: Predicate
+  priority:  2
+  pattern: |
+    trigger = [tag=/^V/]+
+    noun:NounPhrase = /.+/
+
+- name: "dep-verb2"
+  label: Predicate
+  priority:  2
+  pattern: |
+    trigger = [tag=/^V/]+
+    noun:NounPhrase = </.+/
+
+- name: "dep-amod"
+  label: Predicate
+  priority:  2
+  pattern: |
+    trigger = [tag=/^J/]+
+    noun:NounPhrase = /.+/
+
+- name: "dep-amod2"
+  label: Predicate
+  priority:  2
+  pattern: |
+    trigger = [tag=/^J/]+
+    noun:NounPhrase = </.+/
+
+
 #- name: "chunk-verb"
 #  label: Predicate
 #  priority: ${rulepriority}

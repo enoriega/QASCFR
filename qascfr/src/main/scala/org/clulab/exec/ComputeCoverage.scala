@@ -3,8 +3,10 @@ package org.clulab.exec
 import com.typesafe.scalalogging.LazyLogging
 import org.clulab.exec.NounPhraseExtractor.getClass
 import org.clulab.json.ParseQASCJsonFile
-import org.clulab.odin.ExtractorEngine
-import org.clulab.utils.cacheResult
+import org.clulab.odin.{EventMention, ExtractorEngine, Mention, TextBoundMention}
+import org.clulab.utils.{StringUtils, cacheResult, stopWords}
+
+import scala.annotation.tailrec
 
 object ComputeCoverage extends App with LazyLogging{
 
@@ -36,7 +38,7 @@ object ComputeCoverage extends App with LazyLogging{
   val processor = new MyCoreNLPProcessor()
 
   val extractions = {
-    cacheResult("training_extractions.ser") {
+    cacheResult("training_extractions.ser", overwrite = false) {
       () =>
         (uniqueSentences.par map {
           sent =>
@@ -51,23 +53,47 @@ object ComputeCoverage extends App with LazyLogging{
   val numExtractions = extractions.values.flatten.size
   logger.info(s"Extracted $numExtractions entities")
 
+  @tailrec
+  def postProcessExtraction(mention:Mention):Set[String] = {
+    mention match {
+      case m:TextBoundMention =>
+        val lemmas = m.words.map (_.toLowerCase) filterNot (w => stopWords.contains(w)) map StringUtils.porterStem
+        val baseForm = lemmas.mkString (" ")
+
+        Set(baseForm) ++ lemmas.toSet
+      case e:EventMention =>
+        postProcessExtraction(e.trigger)
+    }
+  }
+
+  def hopIntersects(s:String, d:String):Boolean = {
+    def aux(phrase:String) = {
+      if(phrase.split(" ").length == 1)
+        Set(StringUtils.porterStem(phrase.toLowerCase().replace(".", "")))
+      else
+        extractions(phrase).flatMap(postProcessExtraction).toSet
+    }
+    val entitiesSource:Set[String] = aux(s)
+
+    // if
+    val entitiesDest:Set[String] = aux(d)
+
+    (entitiesSource intersect entitiesDest).nonEmpty
+  }
+
   // Now compute the coverage for each QASC instance
   val intersectionCoverage =
     trainingEntries map {
       e =>
-//        val hops = Seq((e.question, e.fact1.get), (e.fact1.get, e.fact2.get), (e.fact2.get, e.choices(e.answerKey.get)))
-        val hops = Seq((e.fact1.get, e.fact2.get))
+        val startHops = Seq((e.fact2.get, e.question), (e.fact1.get, e.question))
+        val innerHop = (e.fact1.get, e.fact2.get)
+        val endHops = Seq((e.fact2.get, e.choices(e.answerKey.get)), (e.fact1.get, e.choices(e.answerKey.get)))
 
-        val intersections =
-          hops map {
-            case (s, d) =>
-              val entitiesSource = extractions(s).map(_.text)
-              val entitiesDest = extractions(d).map(_.text)
+        val innerIntersects = hopIntersects(innerHop._1, innerHop._2)
+        val startIntersects = startHops map (h => hopIntersects(h._1, h._2)) exists identity
+        val endIntersects = endHops map (h => hopIntersects(h._1, h._2)) exists identity
 
-              (entitiesSource intersect entitiesDest).nonEmpty
-          }
-
-        intersections.forall(identity)
+        innerIntersects && startIntersects && endIntersects
     }
 
   val covered = intersectionCoverage.count(identity)
