@@ -1,12 +1,28 @@
 package org.clulab.exec
 
 import com.typesafe.scalalogging.LazyLogging
-import org.clulab.exec.NounPhraseExtractor.getClass
-import org.clulab.json.ParseQASCJsonFile
+import org.clulab.json.{ParseQASCJsonFile, QASCEntry}
 import org.clulab.odin.{EventMention, ExtractorEngine, Mention, TextBoundMention}
 import org.clulab.utils.{StringUtils, cacheResult, stopWords}
 
 import scala.annotation.tailrec
+
+case class PhraseIntersection(sentA:String, sentB:String, intersection:Set[String]){
+  override def toString: String = {
+    s"""From: \"$sentA\"
+       |To:   \"$sentB\"
+       |By:   \"${intersection.toSeq.sortBy(_.length).last}\"
+       |""".stripMargin
+  }
+}
+case class IntersectionInfo(start:PhraseIntersection, intermediate:PhraseIntersection, end:PhraseIntersection) {
+  lazy val isComplete:Boolean =
+    start.intersection.nonEmpty && intermediate.intersection.nonEmpty && end.intersection.nonEmpty
+
+  override def toString: String = {
+    "Start:\n" + start.toString + "\nIntermediate:\n" + intermediate.toString  + "\nEnd:\n" + end.toString + "\n"
+  }
+}
 
 object ComputeCoverage extends App with LazyLogging{
 
@@ -57,7 +73,7 @@ object ComputeCoverage extends App with LazyLogging{
   def postProcessExtraction(mention:Mention):Set[String] = {
     mention match {
       case m:TextBoundMention =>
-        val lemmas = m.words.map (_.toLowerCase) filterNot (w => stopWords.contains(w)) map StringUtils.porterStem
+        val lemmas = m.words.map (_.toLowerCase)  map StringUtils.porterStem filterNot (w => stopWords.contains(w))
         val baseForm = lemmas.mkString (" ")
 
         Set(baseForm) ++ lemmas.toSet
@@ -66,38 +82,59 @@ object ComputeCoverage extends App with LazyLogging{
     }
   }
 
-  def hopIntersects(s:String, d:String):Boolean = {
+  def hopIntersects(s:String, d:String):Set[String] = {
     def aux(phrase:String) = {
       if(phrase.split(" ").length == 1)
-        Set(StringUtils.porterStem(phrase.toLowerCase().replace(".", "")))
+        Set(StringUtils.porterStem(phrase.toLowerCase().replace(".", ""))).filter(_ != "")
       else
-        extractions(phrase).flatMap(postProcessExtraction).toSet
+        extractions(phrase).flatMap(postProcessExtraction).toSet.filter(_ != "")
     }
     val entitiesSource:Set[String] = aux(s)
 
-    // if
     val entitiesDest:Set[String] = aux(d)
 
-    (entitiesSource intersect entitiesDest).nonEmpty
+    entitiesSource intersect entitiesDest
   }
 
   // Now compute the coverage for each QASC instance
   val intersectionCoverage =
     trainingEntries map {
       e =>
-        val startHops = Seq((e.fact2.get, e.question), (e.fact1.get, e.question))
-        val innerHop = (e.fact1.get, e.fact2.get)
-        val endHops = Seq((e.fact2.get, e.choices(e.answerKey.get)), (e.fact1.get, e.choices(e.answerKey.get)))
-
-        val innerIntersects = hopIntersects(innerHop._1, innerHop._2)
-        val startIntersects = startHops map (h => hopIntersects(h._1, h._2)) exists identity
-        val endIntersects = endHops map (h => hopIntersects(h._1, h._2)) exists identity
-
-        innerIntersects && startIntersects && endIntersects
+        e -> findIntersection(e)
     }
 
-  val covered = intersectionCoverage.count(identity)
+  def findIntersection(e: QASCEntry):Option[IntersectionInfo] = {
+    val startHops = Seq((e.question, e.fact2.get), (e.question, e.fact1.get))
+    val innerHop = (e.fact1.get, e.fact2.get)
+    val endHops = Seq((e.fact2.get, e.choices(e.answerKey.get)), (e.fact1.get, e.choices(e.answerKey.get)))
+
+    val innerIntersection = hopIntersects(innerHop._1, innerHop._2)
+    val startIntersections =
+      startHops map (h => PhraseIntersection(h._1, h._2, hopIntersects(h._1, h._2))) filter (_.intersection.nonEmpty)
+    val endIntersections =
+      endHops map (h => PhraseIntersection(h._1, h._2, hopIntersects(h._1, h._2))) filter (_.intersection.nonEmpty)
+
+    if(startIntersections.nonEmpty && endIntersections.nonEmpty && innerIntersection.nonEmpty) {
+      Some(IntersectionInfo(
+        startIntersections.head,
+        PhraseIntersection(e.fact1.get, e.fact2.get, innerIntersection),
+        endIntersections.head
+      ))
+    }
+    else
+      None
+  }
+
+  val coveredInstances = intersectionCoverage.collect{ case (e, Some(c)) => (e, c) }
+  val covered = coveredInstances.size
   val notCovered = trainingEntries.size - covered
 
   logger.info(s"Covered: $covered\tNot covered: $notCovered")
+
+  coveredInstances foreach {
+    case (e, c) =>
+      println(e.id)
+      println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
+      println(c)
+  }
 }
