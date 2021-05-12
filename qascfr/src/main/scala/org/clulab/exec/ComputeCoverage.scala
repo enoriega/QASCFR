@@ -6,12 +6,13 @@ import org.clulab.odin.{EventMention, ExtractorEngine, Mention, TextBoundMention
 import org.clulab.utils.{StringUtils, cacheResult, stopWords}
 
 import scala.annotation.tailrec
+import scala.util.Random
 
 case class PhraseIntersection(sentA:String, sentB:String, intersection:Set[String]){
   override def toString: String = {
     s"""From: \"$sentA\"
        |To:   \"$sentB\"
-       |By:   \"${intersection.toSeq.sortBy(_.length).last}\"
+       |By:   \"${intersection.toSeq.sortBy(_.length).reverse}\"
        |""".stripMargin
   }
 }
@@ -131,7 +132,7 @@ object ComputeCoverage extends App with LazyLogging{
 
   logger.info(s"Covered: $covered\tNot covered: $notCovered")
 
-  coveredInstances foreach {
+  Random.shuffle(coveredInstances) foreach {
     case (e, c) =>
       println(e.id)
       println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
