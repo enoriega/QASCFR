@@ -9,10 +9,26 @@ object EntityProcessing {
   def postProcessExtraction(mention:Mention):Set[String] = {
     mention match {
       case m:TextBoundMention =>
-        val lemmas = m.words.map (_.toLowerCase)  map StringUtils.porterStem filterNot (w => stopWords.contains(w))
-        val baseForm = lemmas.mkString (" ")
+        val stems = m.words map (w => StringUtils.porterStem(w).toLowerCase) filterNot (s => s.isEmpty || stopWords.contains(s))
+        // Filter out any stem that corresponds to noun and verbs
+        val terms = (stems zip m.tags.get) collect {
+          case (stem, tag)
+            if stem.nonEmpty && (tag.startsWith("N") || tag.startsWith("V")) =>
+              stem
+        }
 
-        (Set(baseForm) ++ lemmas.toSet).filter(_ != "")
+
+
+        val filteredBaseForm = {
+          if(stems.nonEmpty) {
+            val baseForm = stems.mkString(" ")
+            Set(baseForm) diff stopWords
+          }
+          else
+            Set.empty
+        }
+
+        filteredBaseForm ++ terms.toSet
       case e:EventMention =>
         postProcessExtraction(e.trigger)
     }

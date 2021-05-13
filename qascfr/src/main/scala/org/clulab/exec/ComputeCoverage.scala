@@ -112,10 +112,10 @@ object ComputeCoverage extends App with LazyLogging{
 
   logger.info(s"Covered: $covered\tNot covered: $notCovered")
 
-//  Random.shuffle(coveredInstances) foreach {
-//    case (e, c) =>
-//      println(e.id)
-//      println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
-//      println(c)
-//  }
+  Random.shuffle(coveredInstances) foreach {
+    case (e, c) =>
+      println(e.id)
+      println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
+      println(c)
+  }
 }

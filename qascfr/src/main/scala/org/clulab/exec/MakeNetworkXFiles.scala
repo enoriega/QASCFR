@@ -12,11 +12,6 @@ object MakeNetworkXFiles extends App with LazyLogging {
   val edgesPath = "data/edges"
 
   def buildEdgeList(edgesDir:String) = {
-//    val index = new mutable.HashMap[String, mutable.HashSet[String]] {
-//      override def default(key: String): mutable.HashSet[String] = new mutable.HashSet[String]}
-//    val invertedIndex = new mutable.HashMap[String, ListBuffer[String]]{
-//      override def default(key: String): ListBuffer[String] = new ListBuffer[String]()
-//    }
 
     val files = new File(edgesDir).listFiles(new FilenameFilter {
       override def accept(dir: File, name: String): Boolean = name.toLowerCase.startsWith("train")
