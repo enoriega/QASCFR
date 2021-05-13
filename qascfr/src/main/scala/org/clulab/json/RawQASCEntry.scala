@@ -21,7 +21,25 @@ case class QASCEntry(id:String,
                      fact1:Option[String],
                      fact2:Option[String],
                      combinedFact:Option[String],
-                     formattedQuestion:String)
+                     formattedQuestion:String) {
+
+  val answer: Option[String] = answerKey match {
+    case Some(k) => Some(choices(k))
+    case None => None
+  }
+
+  val phrases:Seq[String] = {
+    val a = answer match {
+      case Some(s) => List(s)
+      case None => Nil
+    }
+
+    val facts =
+      List(fact1, fact2) collect { case Some(s) => s }
+
+    question :: (a ++ facts)
+  }
+}
 
 object QASCEntry{
   implicit lazy val formats = DefaultFormats

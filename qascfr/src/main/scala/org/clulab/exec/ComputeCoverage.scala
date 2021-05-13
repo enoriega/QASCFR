@@ -3,7 +3,8 @@ package org.clulab.exec
 import com.typesafe.scalalogging.LazyLogging
 import org.clulab.json.{ParseQASCJsonFile, QASCEntry}
 import org.clulab.odin.{EventMention, ExtractorEngine, Mention, TextBoundMention}
-import org.clulab.utils.{StringUtils, cacheResult, stopWords}
+import org.clulab.utils.EntityProcessing.nodesFromPhrase
+import org.clulab.utils.{StringUtils, buildExtractorEngine, cacheResult, stopWords}
 
 import scala.annotation.tailrec
 import scala.util.Random
@@ -45,14 +46,9 @@ object ComputeCoverage extends App with LazyLogging{
 
   logger.info(s"Annotating ${uniqueSentences.size} different question, answers and facts")
 
-  // read rules from general-rules.yml file in resources
-  val source = io.Source.fromURL(getClass.getResource("/grammars/master.yml"))
-  val rules = source.mkString
-  source.close()
+  val (processor, extractor) = buildExtractorEngine()
 
-  // creates an extractor engine using the rules and the default actions
-  val extractor = ExtractorEngine(rules)
-  val processor = new MyCoreNLPProcessor()
+
 
   val extractions = {
     cacheResult("training_extractions.ser", overwrite = false) {
@@ -70,29 +66,13 @@ object ComputeCoverage extends App with LazyLogging{
   val numExtractions = extractions.values.flatten.size
   logger.info(s"Extracted $numExtractions entities")
 
-  @tailrec
-  def postProcessExtraction(mention:Mention):Set[String] = {
-    mention match {
-      case m:TextBoundMention =>
-        val lemmas = m.words.map (_.toLowerCase)  map StringUtils.porterStem filterNot (w => stopWords.contains(w))
-        val baseForm = lemmas.mkString (" ")
 
-        Set(baseForm) ++ lemmas.toSet
-      case e:EventMention =>
-        postProcessExtraction(e.trigger)
-    }
-  }
 
   def hopIntersects(s:String, d:String):Set[String] = {
-    def aux(phrase:String) = {
-      if(phrase.split(" ").length == 1)
-        Set(StringUtils.porterStem(phrase.toLowerCase().replace(".", ""))).filter(_ != "")
-      else
-        extractions(phrase).flatMap(postProcessExtraction).toSet.filter(_ != "")
-    }
-    val entitiesSource:Set[String] = aux(s)
 
-    val entitiesDest:Set[String] = aux(d)
+    val entitiesSource:Set[String] = nodesFromPhrase(s, extractions)
+
+    val entitiesDest:Set[String] = nodesFromPhrase(d, extractions)
 
     entitiesSource intersect entitiesDest
   }
@@ -132,10 +112,10 @@ object ComputeCoverage extends App with LazyLogging{
 
   logger.info(s"Covered: $covered\tNot covered: $notCovered")
 
-  Random.shuffle(coveredInstances) foreach {
-    case (e, c) =>
-      println(e.id)
-      println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
-      println(c)
-  }
+//  Random.shuffle(coveredInstances) foreach {
+//    case (e, c) =>
+//      println(e.id)
+//      println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
+//      println(c)
+//  }
 }

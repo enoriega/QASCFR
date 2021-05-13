@@ -1,5 +1,6 @@
 package org.clulab
 
+import org.clulab.exec.MyCoreNLPProcessor
 import org.clulab.odin._
 import org.clulab.processors.{Document, Sentence}
 
@@ -152,6 +153,18 @@ package object utils {
         Serializer.load[B](file)
 
     result
+  }
+
+  def buildExtractorEngine() = {
+    // read rules from general-rules.yml file in resources
+    val source = io.Source.fromURL(getClass.getResource("/grammars/master.yml"))
+    val rules = source.mkString
+    source.close()
+
+    // creates an extractor engine using the rules and the default actions
+    val extractor = ExtractorEngine(rules)
+    val processor = new MyCoreNLPProcessor()
+    (processor, extractor)
   }
 
 }
