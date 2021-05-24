@@ -34,19 +34,19 @@
     trigger = [tag=/^V/]+
     noun:NounPhrase = </.+/
 
-- name: "dep-amod"
-  label: Predicate
-  priority:  2
-  pattern: |
-    trigger = [tag=/^J/]+
-    noun:NounPhrase = /.+/
-
-- name: "dep-amod2"
-  label: Predicate
-  priority:  2
-  pattern: |
-    trigger = [tag=/^J/]+
-    noun:NounPhrase = </.+/
+#- name: "dep-amod"
+#  label: Predicate
+#  priority:  2
+#  pattern: |
+#    trigger = [tag=/^J/]+
+#    noun:NounPhrase = /.+/
+#
+#- name: "dep-amod2"
+#  label: Predicate
+#  priority:  2
+#  pattern: |
+#    trigger = [tag=/^J/]+
+#    noun:NounPhrase = </.+/
 
 
 #- name: "chunk-verb"

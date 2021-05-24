@@ -26,10 +26,10 @@ object MakeNeo4JFiles extends App with LazyLogging{
 
   // Read the corpus and split in chunks, to then index the serialzied document files
 
-  def writeToDisk(chunkNodes: Map[String, Set[String]], file: File): Unit = using(new FileWriter(file)){
+  def writeToDisk(chunkNodes: Map[String, (Set[String], Boolean)], file: File): Unit = using(new FileWriter(file)){
     os =>
-      for((phrase, nodes) <- chunkNodes)
-        os.write(s"$phrase\t" + nodes.mkString("\t") + "\n")
+      for((phrase, (nodes, isQuestion)) <- chunkNodes)
+        os.write(s"$phrase\t" + isQuestion + "\t" + nodes.mkString("\t") + "\n")
   }
 
   def makeDatasetFiles(path:String): Unit =  {
@@ -37,15 +37,15 @@ object MakeNeo4JFiles extends App with LazyLogging{
     val prefix = new File(path).getName
     val entries = ParseQASCJsonFile.readFrom(path)
 
-    val uniquePhrases = entries.flatMap(_.phrases).toSeq
+    val uniquePhrases = entries.flatMap(_.phrases.zipWithIndex map { case(p, ix) => (p, ix == 0)}).toSeq
 
     val (processor, extractor) = buildExtractorEngine()
 
     val extractions = {
-      cacheResult(new File(extractionsPath, "${prefix}_extractions.ser").getPath, overwrite = false) {
+      cacheResult(new File(extractionsPath, s"${prefix}_extractions.ser").getPath, overwrite = true) {
         () =>
           (uniquePhrases.par map {
-            sent =>
+            case (sent, _) =>
               val doc = processor.annotate(sent)
               val mentions = extractor.extractFrom(doc)
               sent -> mentions
@@ -85,7 +85,7 @@ object MakeNeo4JFiles extends App with LazyLogging{
                 })
             } toMap
 
-            val chunkNodes: Map[String, Set[String]] = makeNodesMap(chunk, chunkExtractions)
+            val chunkNodes: Map[String, (Set[String], Boolean)] = makeNodesMap(chunk map ((_, false)), chunkExtractions)
 
             writeToDisk(chunkNodes, new File(edgesPath, s"edges_$ix.tsv"))
             logger.info(s"Finished chunk $ix")
@@ -97,8 +97,8 @@ object MakeNeo4JFiles extends App with LazyLogging{
     }
   }
 
-  private def makeNodesMap(phrases: Seq[String], extractions: Map[String, Seq[Mention]]): Map[String, Set[String]] = {
-    (phrases map (p => p -> nodesFromPhrase(p, extractions))).toMap
+  private def makeNodesMap(phrases: Seq[(String, Boolean)], extractions: Map[String, Seq[Mention]]): Map[String, (Set[String], Boolean)] = {
+    (phrases map { case(p, isQuestion) => p -> (nodesFromPhrase(p, extractions), isQuestion)}).toMap
   }
 
 //  makeDatasetFiles(datasetPath)

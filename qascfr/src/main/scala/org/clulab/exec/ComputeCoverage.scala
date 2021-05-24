@@ -84,38 +84,36 @@ object ComputeCoverage extends App with LazyLogging{
         e -> findIntersection(e)
     }
 
-  def findIntersection(e: QASCEntry):Option[IntersectionInfo] = {
+  def findIntersection(e: QASCEntry):IntersectionInfo = {
     val startHops = Seq((e.question, e.fact2.get), (e.question, e.fact1.get))
     val innerHop = (e.fact1.get, e.fact2.get)
     val endHops = Seq((e.fact2.get, e.choices(e.answerKey.get)), (e.fact1.get, e.choices(e.answerKey.get)))
 
     val innerIntersection = hopIntersects(innerHop._1, innerHop._2)
     val startIntersections =
-      startHops map (h => PhraseIntersection(h._1, h._2, hopIntersects(h._1, h._2))) filter (_.intersection.nonEmpty)
+      startHops map (h => PhraseIntersection(h._1, h._2, hopIntersects(h._1, h._2)))  sortBy (_.intersection.isEmpty)
     val endIntersections =
-      endHops map (h => PhraseIntersection(h._1, h._2, hopIntersects(h._1, h._2))) filter (_.intersection.nonEmpty)
+      endHops map (h => PhraseIntersection(h._1, h._2, hopIntersects(h._1, h._2))) sortBy (_.intersection.isEmpty)
 
-    if(startIntersections.nonEmpty && endIntersections.nonEmpty && innerIntersection.nonEmpty) {
-      Some(IntersectionInfo(
+    IntersectionInfo(
         startIntersections.head,
         PhraseIntersection(e.fact1.get, e.fact2.get, innerIntersection),
         endIntersections.head
-      ))
-    }
-    else
-      None
+      )
   }
 
-  val coveredInstances = intersectionCoverage.collect{ case (e, Some(c)) => (e, c) }
+  val (coveredInstances, unCoveredInstances) = intersectionCoverage.partition{ case (_, c) => c.isComplete }
+
   val covered = coveredInstances.size
   val notCovered = trainingEntries.size - covered
 
   logger.info(s"Covered: $covered\tNot covered: $notCovered")
 
-  Random.shuffle(coveredInstances) foreach {
+  Random.shuffle(coveredInstances.take(100)) foreach {
     case (e, c) =>
-      println(e.id)
-      println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
-      println(c)
+//      println(e.id)
+//      println(s"${e.question} -- ${e.choices(e.answerKey.get)}:")
+//      println(c)
+      println(s"""("${e.question}", "${e.answer.get}"),""")
   }
 }
