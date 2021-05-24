@@ -25,6 +25,8 @@ object MakeNetworkXFiles extends App with LazyLogging {
     questionFlagMap: Map[String, Boolean]) = mergeIndividualFiles(files)
 
     logger.info("Computing indices")
+    // Build the index matrix
+    val codes = (index.keySet | invertedIndex.keySet).toSeq.zipWithIndex.toMap
 //    val index = individualMaps flatMap (_.toSeq) groupBy (_._1) mapValues { _.flatMap(_._2).toSet }
 //    val invertedIndex = index.toSeq flatMap { case (phrase, terms) => terms map (t => t -> phrase)} groupBy (_._1) mapValues { _.map(_._2).toSet}
     logger.info("Generating edges")
@@ -33,6 +35,13 @@ object MakeNetworkXFiles extends App with LazyLogging {
     logger.info(s"$total")
     val stepSize = total / 100
 
+    using(new FileWriter("nx_codes.txt")){
+      w =>
+        for((t, ix) <- codes){
+          w.write(s"$ix\t$t\n")
+        }
+    }
+
     using(new FileWriter("nx_nodes.txt")){
       w =>
         val seen = mutable.HashSet[String]()
@@ -40,7 +49,7 @@ object MakeNetworkXFiles extends App with LazyLogging {
           case (phrase, isQuestion) =>
             if(!seen.contains(phrase)) {
               seen += phrase
-              w.write(s"$phrase\t$isQuestion\n")
+              w.write(s"${codes(phrase)}\t$isQuestion\n")
             }
         }
     }
@@ -55,9 +64,9 @@ object MakeNetworkXFiles extends App with LazyLogging {
               terms.distinct foreach  {
                 term =>
                 // See the edges with connections
-                val endPoints = invertedIndex(term)
+                val endPoints = invertedIndex(term).take(10)
                   // Sub sample the end points to keep things feasible
-                  val sampledEndPoints = endPoints.take(1)
+                  val sampledEndPoints = endPoints
                 sampledEndPoints foreach  {
                   endPoint =>
                     if(endPoint != phrase) {
@@ -66,7 +75,7 @@ object MakeNetworkXFiles extends App with LazyLogging {
                         val reversed = (endPoint, phrase)
                         seen += edge
                         seen += reversed
-                        w.write(s"$phrase\t$endPoint\n")
+                        w.write(s"${codes(phrase)}\t${codes{endPoint}}\n")
                       }
                     }
 
