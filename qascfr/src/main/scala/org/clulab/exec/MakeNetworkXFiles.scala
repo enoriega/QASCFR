@@ -15,20 +15,20 @@ object MakeNetworkXFiles extends App with LazyLogging {
 
   def buildEdgeList(edgesDir:String) = {
 
-    val files = new File(edgesDir).listFiles(new FilenameFilter {
-      override def accept(dir: File, name: String): Boolean = name.toLowerCase.endsWith(".tsv") //name.toLowerCase.startsWith("train")
-    })
-
-
-    val (index:Map[String, List[String]],
+    val (index: Map[String, List[String]],
     invertedIndex: Map[String, List[String]],
-    questionFlagMap: Map[String, Boolean]) = mergeIndividualFiles(files)
+    questionFlagMap: Map[String, Boolean]) =
+      cacheResult("NetworkX_indices.ser", overwrite= false){
+        () => buildIndices(edgesDir)
+      }
 
     logger.info("Computing indices")
-    // Build the index matrix
-    val codes = (index.keySet | invertedIndex.keySet).toSeq.zipWithIndex.toMap
-//    val index = individualMaps flatMap (_.toSeq) groupBy (_._1) mapValues { _.flatMap(_._2).toSet }
-//    val invertedIndex = index.toSeq flatMap { case (phrase, terms) => terms map (t => t -> phrase)} groupBy (_._1) mapValues { _.map(_._2).toSet}
+
+    val codes = new mutable.OpenHashMap[String, Int](initialSize = index.size + invertedIndex.size)
+    for((t, ix) <- (index.keysIterator ++ invertedIndex.keysIterator).zipWithIndex){
+      codes += t -> ix
+    }
+
     logger.info("Generating edges")
 
     val total = index.size
@@ -56,42 +56,69 @@ object MakeNetworkXFiles extends App with LazyLogging {
 
     using(new FileWriter("nx_edges.txt")){
       w =>
-        val seen = mutable.HashSet[(String, String)]()
+//        val seen = mutable.HashSet[(String, String)]()
         //val edges =
-          index.zipWithIndex foreach  {
-            case ((phrase, terms), ix) =>
-                logger.info(s"${ix}")
+          var ix = 0
+          index foreach  {
+            case (phrase, terms) =>
+              logger.info(s"${ix}")
+              ix += 1
+              w.flush()
               terms.distinct foreach  {
                 term =>
-                // See the edges with connections
-                val endPoints = invertedIndex(term).take(10)
-                  // Sub sample the end points to keep things feasible
-                  val sampledEndPoints = endPoints
-                sampledEndPoints foreach  {
-                  endPoint =>
-                    if(endPoint != phrase) {
-                      val edge = (phrase, endPoint)
-                      if (!seen.contains(edge)) {
-                        val reversed = (endPoint, phrase)
-                        seen += edge
-                        seen += reversed
-                        w.write(s"${codes(phrase)}\t${codes{endPoint}}\n")
-                      }
+                  try {
+                    // See the edges with connections
+                    val endPoints = invertedIndex(term).take(10)
+                    // Sub sample the end points to keep things feasible
+                    val sampledEndPoints = endPoints
+                    sampledEndPoints foreach {
+                      endPoint =>
+                        if (endPoint != phrase) {
+//                          val edge = (phrase, endPoint)
+//                          if (!seen.contains(edge)) {
+//                            val reversed = (endPoint, phrase)
+//                            seen += edge
+//                            seen += reversed
+                            w.write(s"${codes(phrase)}\t${
+                              codes {
+                                endPoint
+                              }
+                            }\n")
+//                          }
+                        }
                     }
+                  }
+                  catch {
+                    case ex:Exception =>
+                      logger.info(ex.getMessage)
+                  }
 
               }
             }
           }
 
-    }
+
+
     logger.info("Done")
 
   }
 
-   def mergeIndividualFiles(files: Array[File]): (Map[String, List[String]], Map[String, List[String]], Map[String, Boolean]) = {
-    val index = new mutable.OpenHashMap[String, List[String]](initialSize = files.length*10000).withDefaultValue(Nil)
-    val invertedIndex = new mutable.OpenHashMap[String, List[String]](initialSize = files.length*100000).withDefaultValue(Nil)
-    val questionFlagMap = new mutable.OpenHashMap[String, Boolean](initialSize = files.length*10000).withDefaultValue(false)
+  private def buildIndices(edgesDir: String): (Map[String, List[String]], Map[String, List[String]], Map[String, Boolean]) = {
+    val files = new File(edgesDir).listFiles(new FilenameFilter {
+      override def accept(dir: File, name: String): Boolean = name.toLowerCase.endsWith(".tsv") //name.toLowerCase.startsWith("train")
+    })
+
+
+    val (index: Map[String, List[String]],
+    invertedIndex: Map[String, List[String]],
+    questionFlagMap: Map[String, Boolean]) = mergeIndividualFiles(files)
+    (index, invertedIndex, questionFlagMap)
+  }
+
+  def mergeIndividualFiles(files: Array[File]): (Map[String, List[String]], Map[String, List[String]], Map[String, Boolean]) = {
+    val index = new mutable.HashMap[String, List[String]]().withDefaultValue(Nil)
+    val invertedIndex = new mutable.HashMap[String, List[String]]().withDefaultValue(Nil)
+    val questionFlagMap = new mutable.HashMap[String, Boolean]().withDefaultValue(false)
 
     val total = files.length
     (for ((file, ix) <- files.zipWithIndex) {
