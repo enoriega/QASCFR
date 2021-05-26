@@ -1,1 +1,2 @@
--J-Xmx50g
+-J-Xmx60g
+-J-Xms40g

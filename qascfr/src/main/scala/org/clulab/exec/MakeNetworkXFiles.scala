@@ -68,7 +68,7 @@ object MakeNetworkXFiles extends App with LazyLogging {
                 term =>
                   try {
                     // See the edges with connections
-                    val endPoints = invertedIndex(term).take(10)
+                    val endPoints = invertedIndex(term)
                     // Sub sample the end points to keep things feasible
                     val sampledEndPoints = endPoints
                     sampledEndPoints foreach {
