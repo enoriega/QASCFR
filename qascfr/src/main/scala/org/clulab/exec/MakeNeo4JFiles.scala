@@ -32,7 +32,7 @@ object MakeNeo4JFiles extends App with LazyLogging{
         os.write(s"$phrase\t" + isQuestion + "\t" + nodes.mkString("\t") + "\n")
   }
 
-  def makeDatasetFiles(path:String): Unit =  {
+  def makeDatasetFiles(path:String, corpusPath:Option[String]): Unit =  {
 
     val prefix = new File(path).getName
     val entries = ParseQASCJsonFile.readFrom(path)
@@ -40,6 +40,8 @@ object MakeNeo4JFiles extends App with LazyLogging{
     val uniquePhrases = entries.flatMap(_.phrases.zipWithIndex map { case(p, ix) => (p, ix == 0)}).toSeq
 
     val (processor, extractor) = buildExtractorEngine()
+
+    // first annotate the sentences in the dataset
 
     val extractions = {
       cacheResult(new File(extractionsPath, s"${prefix}_extractions.ser").getPath, overwrite = true) {
@@ -56,7 +58,54 @@ object MakeNeo4JFiles extends App with LazyLogging{
     val phrasesNodes =
       makeNodesMap(uniquePhrases, extractions)
 
-    writeToDisk(phrasesNodes, new File(edgesPath,  s"${prefix}_nodes.tsv"))
+    // now sample some sentences in the corpus, to introduce noise
+    val corpusPhraseNodes:Map[String, (Set[String], Boolean)] =
+    corpusPath match {
+      case Some(p) =>
+        using(io.Source.fromFile(p)) {
+          src =>
+            // We are going to add k noise sentences
+            val k = 5e4 // 1 million sentences of noise
+            val numChunks = k / 10e3
+            // The sentences are annotated in chunks of 10k sentences. We will read them lazily
+            val chunks = src.getLines().sliding(10000, 10000)
+
+            val (_, extractor) = buildExtractorEngine()
+
+            val futures =
+              for ((chunk, ix) <- chunks.zipWithIndex.take(numChunks.toInt)) yield Future {
+                logger.info(s"Processing chunk $ix")
+                val doc = Serializer.load[Document](new File(annotationsPath, s"QASC_annotations_$ix.ser"))
+                val mentionsBySentence = cacheResult(new File(extractionsPath, s"mentions_$ix.ser").getPath, false) {
+                  () =>
+                    extractor.extractFrom(doc).groupBy(_.sentence)
+                }
+
+                val chunkExtractions: Map[String, Seq[Mention]] = chunk.zipWithIndex map {
+                  case (phrase, pIx) =>
+                    val mentions = mentionsBySentence.get(pIx)
+                    phrase -> (mentions match {
+                      case Some(m) => m;
+                      case None => Seq.empty
+                    })
+                } toMap
+
+                val chunkNodes: Map[String, (Set[String], Boolean)] = makeNodesMap(chunk map ((_, false)), chunkExtractions)
+
+                //writeToDisk(chunkNodes, new File(edgesPath, s"edges_$ix.tsv"))
+                logger.info(s"Finished chunk $ix")
+                chunkNodes
+              }
+            val results = Future.sequence(futures)
+            Await.result(results, 10 days).flatten.toMap
+        }
+      case None => Map.empty
+    }
+
+
+
+
+    writeToDisk(phrasesNodes ++ corpusPhraseNodes, new File(edgesPath,  s"${prefix}_nodes.tsv"))
   }
 
   def makeCorpusFiles(): Unit = {
@@ -101,6 +150,6 @@ object MakeNeo4JFiles extends App with LazyLogging{
     (phrases map { case(p, isQuestion) => p -> (nodesFromPhrase(p, extractions), isQuestion)}).toMap
   }
 
-//  makeDatasetFiles(datasetPath)
-  makeCorpusFiles()
+  makeDatasetFiles(datasetPath, Some(corpusPath))
+//  makeCorpusFiles()
 }

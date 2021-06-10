@@ -6,6 +6,7 @@ import csv
 import pandas as pd
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import shelve
 
 
 # %%
@@ -116,7 +117,7 @@ sample = [("Which has a unique water vascular system?", "Echinoids"),
 # Read the codes
 with open('../nx_codes.txt') as f:
     reader = csv.reader(f, delimiter='\t')
-    codes = {val:code for code, val in reader}
+    codes = {val:int(code) for code, val in reader}
 
 # %%
 # Read the edges
@@ -159,27 +160,34 @@ def find_number_of_paths(question, answer):
     simple_paths = nx.all_simple_paths(V, question, answer, cutoff=3)
     
 
-    return len(list(simple_paths))
+    return list(simple_paths)
 
 
 # %%
-find_number_of_paths("What type of water formation is formed by clouds?", "beads")
+# find_number_of_paths("What type of water formation is formed by clouds?", "beads")
 
 
 # %%
-with ProcessPoolExecutor(max_workers=8) as ctx:
-    futures = {ctx.submit(find_number_of_paths, q, a):(q, a) for  q, a in sample}
+with ProcessPoolExecutor(max_workers=8) as ctx, shelve.open('qascfr_paths.shelf') as db:
+    futures = dict()
+    for q, a in sample:
+        shelf_key = f'{q}\t{a}'
+        if shelf_key not in db:
+            future = ctx.submit(find_number_of_paths, q, a)
+            futures[future] = (q, a)
+    # futures = {ctx.submit(find_number_of_paths, q, a):(q, a) for  q, a in sample}
     results = dict()
-    for future in as_completed(futures):
+    for future in tqdm(as_completed(futures), desc='Finding paths'):
         q, a = futures[future]
         try:
             r = future.result()
-            results[(q, a)] = r
-            print(r)
+            shelf_key = f'{q}\t{a}'
+            db[shelf_key] = r
+            print(len(r))
         except Exception as ex:
-            print(f"Exception on {q},  {a}: {type(ex)}")
+            print(f"Exception on {q},  {a}: {type(ex)} {ex}")
 
-print(results.values())
+print(results)
 
 
 # %%

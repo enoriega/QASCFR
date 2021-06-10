@@ -18,7 +18,7 @@ object MakeNetworkXFiles extends App with LazyLogging {
     val (index: Map[String, List[String]],
     invertedIndex: Map[String, List[String]],
     questionFlagMap: Map[String, Boolean]) =
-      cacheResult("NetworkX_indices.ser", overwrite= false){
+      cacheResult("NetworkX_indices.ser", overwrite= true){
         () => buildIndices(edgesDir)
       }
 
@@ -105,7 +105,7 @@ object MakeNetworkXFiles extends App with LazyLogging {
 
   private def buildIndices(edgesDir: String): (Map[String, List[String]], Map[String, List[String]], Map[String, Boolean]) = {
     val files = new File(edgesDir).listFiles(new FilenameFilter {
-      override def accept(dir: File, name: String): Boolean = name.toLowerCase.endsWith(".tsv") //name.toLowerCase.startsWith("train")
+      override def accept(dir: File, name: String): Boolean = name.toLowerCase.endsWith(".tsv") && name.toLowerCase.startsWith("train")
     })
 
 
