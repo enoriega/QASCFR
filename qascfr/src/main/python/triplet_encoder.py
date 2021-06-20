@@ -13,11 +13,13 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from tqdm import tqdm
+import numpy as np
 
 # Read the GT paths
-DATASET_DIR = "/home/enrique/Downloads/QASC_Dataset"
+DATASET_DIR = "/work/enoriega/github/QASCFR/qascfr/QASC_Dataset"
 
-nlp = spacy.load("en_core_web_sm")
+nlp = spacy.load("en_core_web_lg")
+nlp.vocab.set_vector('@OOV@', vector=np.zeros(nlp.vocab.vectors.shape[1]))
 
 def pre_process(text):
     text = text.lower()
@@ -85,16 +87,19 @@ class TripletDataset(Dataset):
 
 
 class QASCEntailmentEncoder(pl.LightningModule):
-    def __init__(self, vocab):
+    def __init__(self, vocab, vectors):
         super().__init__()
         self.vocab = dict(vocab)
 
         # Computational graph definition
-        self.embeds = nn.EmbeddingBag(len(self.vocab), 200)  # Embedding matrix. For now, is trainable
+        #self.embeds = nn.EmbeddingBag, vectors(len(self.vocab), 200)  # Embedding matrix. For now, is trainable
+        self.embeds = nn.EmbeddingBag.from_pretrained(vectors, freeze=True)
 
         # Encoder from embeddings to the new vector space
         self.encoder = nn.Sequential(
-            nn.Linear(200, 200),
+            nn.Linear(300, 300),
+            nn.ReLU(),
+            nn.Linear(300, 200),
             nn.ReLU(),
             nn.Linear(200, 100),
         )
@@ -103,7 +108,7 @@ class QASCEntailmentEncoder(pl.LightningModule):
         # We get phrases as input, embbed them and project them into the learnt vector space
         batch = list()
         for phrase in phrases:
-            codes = torch.tensor([[self.vocab[term] for term in phrase.split()]], dtype=torch.long).to(self.device)
+            codes = torch.tensor([[self.vocab[term] if term in self.vocab else self.vocab['@OOV@'] for term in phrase.split()]], dtype=torch.long).to(self.device)
             avg = self.embeds(codes)
             batch.append(avg)
 
@@ -161,19 +166,22 @@ if __name__ == "__main__":
     all_triplets = train_triplets | test_triplets
 
     # Build the vocabulary
-    voc = build_vocab(train_triplets, test_triplets)
+    #voc = build_vocab(train_triplets, test_triplets)
+    spacyids = {term:nlp.vocab.strings[term] for term in nlp.vocab.strings}
+    oovid = nlp.vocab.strings['@OOV@']
+    voc = {term:nlp.vocab.vectors.key2row[id] if id in nlp.vocab.vectors.key2row else nlp.vocab.vectors.key2row[oovid] for term, id in spacyids.items()}
 
     # Build the torch datasets
     training_dataset = TripletDataset(train_triplets)
     testing_dataset = TripletDataset(test_triplets)
 
     # Make the data loaders
-    train_dataloader = DataLoader(training_dataset, batch_size=100, shuffle=True, num_workers=16)
-    test_dataloader = DataLoader(testing_dataset, batch_size=100, shuffle=False, num_workers=16)
+    train_dataloader = DataLoader(training_dataset, batch_size=100000, shuffle=True, num_workers=16)
+    test_dataloader = DataLoader(testing_dataset, batch_size=10000, shuffle=False, num_workers=16)
 
     # Instantiate the model, trainer, etc
 
     trainer = pl.Trainer(gpus=1, callbacks=[EarlyStopping(monitor='val_loss')])
-    model = QASCEntailmentEncoder(voc)
+    model = QASCEntailmentEncoder(voc, torch.FloatTensor(nlp.vocab.vectors.data))
+    
     trainer.fit(model, train_dataloader, test_dataloader)
-
