@@ -7,6 +7,7 @@ import org.json4s.jackson.JsonMethods._
 
 import scala.collection.immutable
 import scala.language.implicitConversions
+import scala.util.Random
 
 case class NoiseEntry(question:String, answer:String, paths:List[List[String]])
 case class IndividualStats(numHops: Int, numCorrectHops:Int, fact1Correct:Boolean, fact2Correct:Boolean) {
@@ -75,9 +76,11 @@ object NoiseAnalysis extends App {
     EntryStats(stats)
   }
 
+  // Compute all statistics
   val allStats =
     relatedEntries map { case (k, v) => crunchExamples(k, v) }
 
+  // function to print the aggregated statistics of a quantity
   def printStats(stats: Iterable[EntryStats]):Unit = {
     def meanStd(nums:Iterable[Double], title:String):(Double, Double, Double) = {
       val mean = nums.sum / nums.size
@@ -87,11 +90,18 @@ object NoiseAnalysis extends App {
       (mean, std, sem)
     }
 
-
+    // Summary of the statistics
     println(s"Number of data points: ${stats.size}")
     meanStd(stats.map(_.size.toDouble), "Number of paths")
     meanStd(stats.map(_.numPartiallyCorrect(true)), "Percentage of paths partially correct")
     meanStd(stats.map(_.numHopsFrequency(true).getOrElse(2, 0.0)), "Paths of two hops (Incorrect)")
+
+    // Sample alternate paths
+    Random.shuffle(relatedEntries.toSeq).take(10) foreach {
+      case (noiseEntry, _) =>
+        val path = Random.shuffle(noiseEntry.paths).head
+        println(path.mkString("  -  "))
+    }
   }
 
 
