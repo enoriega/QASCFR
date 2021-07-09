@@ -38,7 +38,8 @@ libraryDependencies ++= {
     "org.apache.lucene" % "lucene-queryparser" % "8.8.2",
     "org.apache.commons" % "commons-lang3" % "3.12.0",
     "org.apache.commons" % "commons-text" % "1.9",
-    "org.json4s" %% "json4s-jackson" % "3.7.0-M16"
+    "org.json4s" %% "json4s-jackson" % "3.7.0-M16",
+    "net.debasishg" %% "redisclient" % "3.30"
   )
 }
 

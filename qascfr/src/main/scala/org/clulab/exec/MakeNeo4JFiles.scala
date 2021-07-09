@@ -12,6 +12,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
+import com.redis._
 
 /**
  * Reads a serialized
@@ -108,6 +109,75 @@ object MakeNeo4JFiles extends App with LazyLogging{
     writeToDisk(phrasesNodes ++ corpusPhraseNodes, new File(edgesPath,  s"${prefix}_nodes.tsv"))
   }
 
+  def populateRedis(datasetPath:String):Unit = {
+    using(new RedisClient("localhost", 6379)) {
+      redis =>
+
+        def sendToRedis(phrase: String, ms: Seq[Mention]) = {
+          ms.head.text
+          val key = s"ph#$phrase"
+          redis.sadd(key, ms.head.text.toLowerCase, ms.tail.map(_.text.toLowerCase): _*)
+        }
+
+        val prefix = new File(datasetPath).getName
+        val entries = ParseQASCJsonFile.readFrom(datasetPath)
+
+        val uniquePhrases = entries.flatMap(_.phrases.zipWithIndex map { case(p, ix) => (p, ix == 0)}).toSeq
+
+        val (processor, extractor) = buildExtractorEngine()
+
+        val extractions = {
+          cacheResult(new File(extractionsPath, s"${prefix}_extractions.ser").getPath, overwrite = true) {
+            () =>
+              (uniquePhrases.par map {
+                case (sent, _) =>
+                  val doc = processor.annotate(sent)
+                  val mentions = extractor.extractFrom(doc)
+                  sent -> mentions
+              }).toMap.seq
+          }
+        }
+
+        logger.info("Processing dataset")
+        extractions foreach {
+          case (question, mentions) =>
+            if(mentions.nonEmpty)
+              sendToRedis(question, mentions)
+        }
+
+        using(io.Source.fromFile(corpusPath)) {
+          src =>
+            // The sentences are annotated in chunks of 10k sentences. We will read them lazily
+            val chunks = src.getLines().sliding(10000, 10000)
+
+            for ((chunk, ix) <- chunks.zipWithIndex) {
+              logger.info(s"Processing chunk $ix")
+              val doc = Serializer.load[Document](new File(annotationsPath, s"QASC_annotations_$ix.ser"))
+              val mentionsBySentence = cacheResult(new File(extractionsPath, s"mentions_$ix.ser").getPath, false) {
+                () =>
+                  extractor.extractFrom(doc).groupBy(_.sentence)
+              }
+
+              chunk.zipWithIndex foreach  {
+                case (phrase, pIx) =>
+                  val mentions = mentionsBySentence.get(pIx)
+                  mentions match {
+                    case Some(ms) =>
+                      sendToRedis(phrase, ms)
+                    case None => ()
+                  }
+              }
+
+              logger.info(s"Finished chunk $ix")
+
+            }
+
+        }
+    }
+
+
+
+  }
   def makeCorpusFiles(): Unit = {
     using(io.Source.fromFile(corpusPath)) {
       src =>
@@ -150,6 +220,7 @@ object MakeNeo4JFiles extends App with LazyLogging{
     (phrases map { case(p, isQuestion) => p -> (nodesFromPhrase(p, extractions), isQuestion)}).toMap
   }
 
-  makeDatasetFiles(datasetPath, Some(corpusPath))
+//  makeDatasetFiles(datasetPath, Some(corpusPath))
 //  makeCorpusFiles()
+  populateRedis(datasetPath)
 }
