@@ -75,13 +75,13 @@ object EmbedQuestion extends App with LazyLogging{
   logger.info("Finished reading the entity index")
 
   val dataLines =
-    using(io.Source.fromFile("train.tsv")){
+    using(io.Source.fromFile("data/train.tsv")){
       src =>
         src.getLines().toList
     }
 
   val phrasesLines =
-    using(io.Source.fromFile("extractions_train.tsv")){
+    using(io.Source.fromFile("data/extractions_train.tsv")){
       src =>
         src.getLines().toList
     }

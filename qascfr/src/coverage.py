@@ -115,14 +115,14 @@ sample = [("Which has a unique water vascular system?", "Echinoids"),
 
 #%%
 # Read the codes
-with open('../nx_codes.txt') as f:
+with open('../data/nx_codes.txt') as f:
     reader = csv.reader(f, delimiter='\t')
     codes = {val:int(code) for code, val in reader}
 
 # %%
 # Read the edges
 edges = set()
-with open("../nx_edges_uniq.txt") as f:
+with open("../data/nx_edges_uniq.txt") as f:
     r = csv.reader(f, delimiter='\t')
     for s, e in tqdm(r, desc='reading edges'):
         edges.add(frozenset((int(s), int(e))))
@@ -134,7 +134,7 @@ G = nx.Graph()
 G.add_edges_from(edges)
 # %%
 # Now read the nodes and add the auxiliary data
-with open('../nx_nodes.txt') as f:
+with open('../data/nx_nodes.txt') as f:
     reader = csv.reader(f, delimiter='\t')
     for node, is_question in reader:
         node = int(node)

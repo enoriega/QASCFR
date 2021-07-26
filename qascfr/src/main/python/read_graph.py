@@ -5,11 +5,11 @@ import itertools as it
 from collections import defaultdict
 
 def read_data():
-    with open('../../../entity_codes.tsv') as f:
+    with open('../../../data/entity_codes.tsv') as f:
         reader = csv.reader(f, delimiter='\t')
         entities = {int(code): ent for ent, code in tqdm(reader, desc="Reading entity codes")}
 
-    with open('../../../extractedEdges.tsv') as f:
+    with open('../../../data/extractedEdges.tsv') as f:
         reader = csv.reader(f, delimiter='\t')
         edges = []
         for ix, (agent, obj, predicate, sentence) in tqdm(enumerate(reader), desc="Reading graph"):
@@ -19,7 +19,7 @@ def read_data():
             if obj != 19 and agent != 19:
                 edges.append((entities[int(agent)], entities[int(obj)], predicate, sentence))
 
-    with open('../../../question_endpoints.tsv') as f:
+    with open('../../../data/question_endpoints.tsv') as f:
         reader = csv.reader(f, delimiter='\t')
         data = dict()
         for row in tqdm(reader, desc="Reading search endpoints"):
